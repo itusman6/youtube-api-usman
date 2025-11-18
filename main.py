@@ -10,26 +10,44 @@ from http.cookies import SimpleCookie
 app = FastAPI(title="YouTube Downloader API")
 
 def extract_info(url: str):
-    ydl_opts = {
-        "skip_download": True,
-        "quiet": True,
-        "no_warnings": True,
-        "cookiesfrombrowser": ("chrome",),
-    }
-    
-    try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            return ydl.extract_info(url, download=False)
-    except Exception as e:
-        # Fallback without cookies
-        ydl_opts_fallback = {
+    # Try multiple methods in sequence
+    methods = [
+        # Method 1: Browser cookies
+        {
+            "skip_download": True,
+            "quiet": True,
+            "no_warnings": True,
+            "cookiesfrombrowser": ("chrome",),
+        },
+        # Method 2: Custom headers
+        {
+            "skip_download": True,
+            "quiet": True,
+            "no_warnings": True,
+            "http_headers": {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            },
+        },
+        # Method 3: Basic (no authentication)
+        {
             "skip_download": True,
             "quiet": True,
             "no_warnings": True,
         }
-        with yt_dlp.YoutubeDL(ydl_opts_fallback) as ydl:
-            return ydl.extract_info(url, download=False)
-
+    ]
+    
+    for i, ydl_opts in enumerate(methods):
+        try:
+            print(f"Trying method {i+1}...")
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(url, download=False)
+                print(f"Success with method {i+1}")
+                return info
+        except Exception as e:
+            print(f"Method {i+1} failed: {str(e)}")
+            if i == len(methods) - 1:  # If this was the last method
+                raise e
+                
 @app.get("/api/info")
 def get_info(url: str = Query(...)):
     try:
@@ -295,6 +313,7 @@ if __name__ == "__main__":
         port=8000,
         reload=True
     )
+
 
 
 
