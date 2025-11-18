@@ -8,66 +8,21 @@ import os
 
 app = FastAPI(title="YouTube Downloader API")
 
-# Embedded cookies content
-COOKIES_CONTENT = """# Netscape HTTP Cookie File
-# https://curl.haxx.se/rfc/cookie_spec.html
-# This is a generated file! Do not edit.
-
-.youtube.com	TRUE	/	TRUE	1763498932	GPS	1
-.youtube.com	TRUE	/	TRUE	0	YSC	8FJ78hoPMis
-.youtube.com	TRUE	/	TRUE	1779049217	VISITOR_INFO1_LIVE	eSO8Bb-X6Ss
-.youtube.com	TRUE	/	TRUE	1779049217	VISITOR_PRIVACY_METADATA	CgJQSxIEGgAgWw%3D%3D
-.youtube.com	TRUE	/	TRUE	1798057200	PREF	tz=Asia.Karachi
-.youtube.com	TRUE	/	TRUE	1779049138	__Secure-ROLLOUT_TOKEN	COiTlKGc2oiXeBCH3q_gwvyQAxiwgv3iwvyQAw%3D%3D
-.youtube.com	TRUE	/	TRUE	1798057192	LOGIN_INFO	AFmmF2swRQIgLQ91ycOD99qAw-D-tfv6MaaZyyvd1hZWDqs7J1hmgjgCIQDVAmyyTmN-ZEpX67uarZGT5YPnrv-eHiFgsO7AIpb8iA:QUQ3MjNmeUZsTi1pVTJWWUtuUlE0cThvT2p6V1RTNF9WY29yQUpnZE96SkRtd1NaUkNsZW4zY1B4VnhqQU9ka3UxejNBY3FoWGJQVTdERDdfdWZDZUNBdzlQLUloVDFENUdOS0ZBam1sSVFrSmlRamM4SmRoc3RrQ3prbGt6UlF6dzNtLTMtMHMtUlgxNWVKRVBULU5XOHBXbl94NEtNZkFn
-.youtube.com	TRUE	/	TRUE	1795033190	__Secure-1PSIDTS	sidts-CjUBwQ9iI0D8C1cv8JwmFp2cYjOLmETeDk2JNV35GVNbeAuHHalkBH4T7K9p10FJ8UZlJxIJkxAA
-.youtube.com	TRUE	/	TRUE	1795033190	__Secure-3PSIDTS	sidts-CjUBwQ9iI0D8C1cv8JwmFp2cYjOLmETeDk2JNV35GVNbeAuHHalkBH4T7K9p10FJ8UZlJxIJkxAA
-.youtube.com	TRUE	/	FALSE	1798057190	HSID	AAGzFQZFZh0mRhQfq
-.youtube.com	TRUE	/	TRUE	1798057190	SSID	A1C7Tpw1sWucqV59s
-.youtube.com	TRUE	/	FALSE	1798057190	APISID	Qmp0EW2MOhpf7-za/A0_eVFHjgTsA8mh9N
-.youtube.com	TRUE	/	TRUE	1798057190	SAPISID	F2Hj0POJBd04NaM3/AlVcsmqHXy1c09neD
-.youtube.com	TRUE	/	TRUE	1798057190	__Secure-1PAPISID	F2Hj0POJBd04NaM3/AlVcsmqHXy1c09neD
-.youtube.com	TRUE	/	TRUE	1798057190	__Secure-3PAPISID	F2Hj0POJBd04NaM3/AlVcsmqHXy1c09neD
-.youtube.com	TRUE	/	FALSE	1798057190	SID	g.a0003ggENmUAUEcaWOhTsvLTk1g-NQgBAeTD_lPuptcwpFIzdOuQbrKs-W5WbPTY5UA4weh-QAACgYKAWkSARISFQHGX2Mix8AD_VUHezKmFayi1EC9JxoVAUF8yKrOmhtVIRujkRDIRtYN4LO00076
-.youtube.com	TRUE	/	TRUE	1798057190	__Secure-1PSID	g.a0003ggENmUAUEcaWOhTsvLTk1g-NQgBAeTD_lPuptcwpFIzdOuQ8G_OKBwW3R794LtQ8-btFwACgYKAQ8SARISFQHGX2MifvC-uN3JRrHRCwc3wzsGLBoVAUF8yKqhmloAUf4mwXDPfDGUxMzB0076
-.youtube.com	TRUE	/	TRUE	1798057190	__Secure-3PSID	g.a0003ggENmUAUEcaWOhTsvLTk1g-NQgBAeTD_lPuptcwpFIzdOuQpDQiY5KomN-qm2nNzQIdLAACgYKAbsSARISFQHGX2Mifsq7WMHEsHOlHygtVgQDAhoVAUF8yKoEYlvTvNcTz1Gh9IrdMUMv0076
-.youtube.com	TRUE	/	FALSE	1795033225	SIDCC	AKEyXzWVJ24h8yUZM7PaROnYA_zuX5NF8ZE59ektD5z8Y0bWR1bnIIzx-bfff5AjC0E-5-vMOA
-.youtube.com	TRUE	/	TRUE	1795033225	__Secure-1PSIDCC	AKEyXzWL0oLEs-ykZiDXxlLsFdwxsBDm0olL1Xx10XHDb6KSUVo1ZKVRiRxhO8PuB8t4Ltmk
-.youtube.com	TRUE	/	TRUE	1795033225	__Secure-3PSIDCC	AKEyXzVNAMrMHbTT69ofNruB4AzoD8uAIwvu6qM-ELTBRaXtChrHi2FWQLjrBhfl1f3XQ3ZL
-.google.com	TRUE	/	TRUE	1779308307	NID	526=JxM0eBCb0TG8-62D_vLDFBmWSPtp3LasJSR_wa-u07-SIo-2fPMPjgHbVMeOXH2jCd0dsw75AP7l73TkQfAJUT7kr9P0OxOLNHd3tfA85o9olbnUown8wjB3DMX8KZ8zmuBpy0xY3y1cYBkz_RWyoR5YzOQuvk8QstS9wq1d-QaEGqF-OXpaLsu9TRVaUkB4w-jg-Nw_wUx2myj0m4eEh0WQcaMYHnmsMF6WjF7xRePWOe_8AoadGE8InCW3pKBrX_iVcwtXUgLoLGp0pRIZTulCFY8R9EQl4ULdWHywGJrPsd_GhMpRJCg8VSh-tMb7FHvxLz3SxRN-bQYQwh14zULb9g6Y_xgl0PJr3e2smRzUVtnMImnShRY4KjmDASjwUWQA4ZYT5JEaEuI97r_SyYW-2m-9kDbzqoPLVr4rYi6mdCZ8IiDmyVYhZptrCYzXqYg9_jt7a074znDCKmxTf0h-dHmaep39Gpy4cggIrhaKk13pS2Mj772ee3LSJeF0Z7opO3RaJHoDcabmOMp2MsWT5697IdIESuanfWmYb4VgSk40XoYVnPXbzzbDjFApW3QRFx_Pl5pXkxtylcXEdxNPqVpieBRdCanjmm7yT2uVzn08eR4Ws59eGXszU1Z-0xVwr6yq8wDTc_w
-.google.com	TRUE	/	FALSE	1798057177	SID	g.a0003ggENmUAUEcaWOhTsvLTk1g-NQgBAeTD_lPuptcwpFIzdOuQbrKs-W5WbPTY5UA4weh-QAACgYKAWkSARISFQHGX2Mix8AD_VUHezKmFayi1EC9JxoVAUF8yKrOmhtVIRujkRDIRtYN4LO00076
-.google.com	TRUE	/	TRUE	1798057177	__Secure-1PSID	g.a0003ggENmUAUEcaWOhTsvLTk1g-NQgBAeTD_lPuptcwpFIzdOuQ8G_OKBwW3R794LtQ8-btFwACgYKAQ8SARISFQHGX2MifvC-uN3JRrHRCwc3wzsGLBoVAUF8yKqhmloAUf4mwXDPfDGUxMzB0076
-.google.com	TRUE	/	TRUE	1798057177	__Secure-3PSID	g.a0003ggENmUAUEcaWOhTsvLTk1g-NQgBAeTD_lPuptcwpFIzdOuQpDQiY5KomN-qm2nNzQIdLAACgYKAbsSARISFQHGX2Mifsq7WMHEsHOlHygtVgQDAhoVAUF8yKoEYlvTvNcTz1Gh9IrdMUMv0076
-.google.com	TRUE	/	FALSE	1798057177	HSID	Auug6T1ZMZ7eN8wCD
-.google.com	TRUE	/	TRUE	1798057177	SSID	AjEYjCqfmP-0oAfY5
-.google.com	TRUE	/	FALSE	1798057177	APISID	Qmp0EW2MOhpf7-za/A0_eVFHjgTsA8mh9N
-.google.com	TRUE	/	TRUE	1798057177	SAPISID	F2Hj0POJBd04NaM3/AlVcsmqHXy1c09neD
-.google.com	TRUE	/	TRUE	1798057177	__Secure-1PAPISID	F2Hj0POJBd04NaM3/AlVcsmqHXy1c09neD
-.google.com	TRUE	/	TRUE	1798057177	__Secure-3PAPISID	F2Hj0POJBd04NaM3/AlVcsmqHXy1c09neD
-.google.com	TRUE	/	FALSE	1795033189	SIDCC	AKEyXzU8PqQ4kZ3m0J1SQNgY3Yg8RQuIErZxZzjhAgHd4XKbmRiee9APFgqSYxy6cg9nJuxhwQ
-.google.com	TRUE	/	TRUE	1795033189	__Secure-1PSIDCC	AKEyXzWFKM784-0FSQsDGCvF7eFg3bT95EXm41pydvFulR0NJK1UNVeiMldGLJYG3GbPcB7Qzg
-.google.com	TRUE	/	TRUE	1795033189	__Secure-3PSIDCC	AKEyXzVAKf5qB1PtlbN7aT_7NuziK8u2cCt_4oUeuDer17oF6xSnHXRGAIbSuzh4aO1Nft4dYg"""
-
 def extract_info(url: str):
-    # Create a temporary cookies file
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as temp_cookies:
-        temp_cookies.write(COOKIES_CONTENT)
-        temp_cookies_path = temp_cookies.name
-    
     ydl_opts = {
         "skip_download": True,
         "quiet": True,
         "no_warnings": True,
-        "cookiefile": temp_cookies_path,
+        # Try using browser cookies directly
+        "cookiesfrombrowser": ("chrome",),  # or "firefox", "edge", etc.
     }
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=False)
-        return info
+            return ydl.extract_info(url, download=False)
     except Exception as e:
-        # If there's an error with cookies, try without them
-        print(f"Error with cookies: {str(e)}")
+        # If browser cookies fail, try without any cookies
+        print(f"Error with browser cookies: {str(e)}")
         ydl_opts_without_cookies = {
             "skip_download": True,
             "quiet": True,
@@ -75,12 +30,6 @@ def extract_info(url: str):
         }
         with yt_dlp.YoutubeDL(ydl_opts_without_cookies) as ydl:
             return ydl.extract_info(url, download=False)
-    finally:
-        # Clean up the temporary file
-        try:
-            os.unlink(temp_cookies_path)
-        except:
-            pass
 
 
 @app.get("/api/info")
@@ -348,3 +297,4 @@ if __name__ == "__main__":
         port=8000,
         reload=True
     )
+
