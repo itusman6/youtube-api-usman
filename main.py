@@ -14,23 +14,21 @@ def extract_info(url: str):
         "skip_download": True,
         "quiet": True,
         "no_warnings": True,
-        # Add custom headers to mimic a real browser
-        "http_headers": {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-            "Accept-Language": "en-us,en;q=0.5",
-            "Accept-Encoding": "gzip,deflate",
-            "Accept-Charset": "ISO-8859-1,utf-8;q=0.7,*;q=0.7",
-            "Connection": "keep-alive",
-        },
+        "cookiesfrombrowser": ("chrome",),
     }
-
+    
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             return ydl.extract_info(url, download=False)
     except Exception as e:
-        return JSONResponse({"status": False, "error": str(e)}, status_code=500)
-
+        # Fallback without cookies
+        ydl_opts_fallback = {
+            "skip_download": True,
+            "quiet": True,
+            "no_warnings": True,
+        }
+        with yt_dlp.YoutubeDL(ydl_opts_fallback) as ydl:
+            return ydl.extract_info(url, download=False)
 
 @app.get("/api/info")
 def get_info(url: str = Query(...)):
@@ -297,6 +295,7 @@ if __name__ == "__main__":
         port=8000,
         reload=True
     )
+
 
 
 
