@@ -6,28 +6,76 @@ from typing import List, Optional
 
 app = FastAPI(title="YouTube Downloader API")
 
-def extract_info(url: str):
-    ydl_opts = {
-        "skip_download": True,
-        "quiet": True,
-        "no_warnings": True,
-        # Add custom headers to mimic a real browser
-        "http_headers": {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-            "Accept-Language": "en-us,en;q=0.5",
-            "Accept-Encoding": "gzip,deflate",
-            "Accept-Charset": "ISO-8859-1,utf-8;q=0.7,*;q=0.7",
-            "Connection": "keep-alive",
-        },
-    }
+from flask import Flask, request, jsonify
+import yt_dlp
+import os
 
+app = Flask(__name__)
+
+# Path to your cookies file
+COOKIES_FILE = "cookies.txt"
+
+def get_cookies_from_file():
+    """Read cookies from Netscape format file"""
+    if os.path.exists(COOKIES_FILE):
+        return COOKIES_FILE
+    return None
+
+@app.route('/download', methods=['POST'])
+def download_video():
+    data = request.json
+    url = data.get('url')
+    format_type = data.get('format', 'mp4')  # Default to mp4
+    
+    if not url:
+        return jsonify({'error': 'URL is required'}), 400
+    
+    # Set download options based on format
+    if format_type == 'mp3':
+        ydl_opts = {
+            'format': 'bestaudio/best',
+            'postprocessors': [{
+                'key': 'FFmpegExtractAudio',
+                'preferredcodec': 'mp3',
+                'preferredquality': '192',
+            }],
+            'outtmpl': 'downloads/%(title)s.%(ext)s',
+        }
+    else:  # mp4 or other video formats
+        ydl_opts = {
+            'format': 'best[ext=mp4]/best',
+            'outtmpl': 'downloads/%(title)s.%(ext)s',
+        }
+    
+    # Add cookies if available
+    cookies_file = get_cookies_from_file()
+    if cookies_file:
+        ydl_opts['cookiefile'] = cookies_file
+    
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            return ydl.extract_info(url, download=False)
+            info = ydl.extract_info(url, download=True)
+            filename = ydl.prepare_filename(info)
+            
+            # For MP3 downloads, the actual file will have .mp3 extension
+            if format_type == 'mp3':
+                filename = os.path.splitext(filename)[0] + '.mp3'
+            
+            return jsonify({
+                'status': 'success',
+                'filename': os.path.basename(filename),
+                'title': info.get('title', 'Unknown')
+            })
+    
     except Exception as e:
-        # Re-raise the exception to be handled by the route handlers
-        raise e
+        return jsonify({'error': str(e)}), 500
+
+if __name__ == '__main__':
+    # Create downloads directory if it doesn't exist
+    if not os.path.exists('downloads'):
+        os.makedirs('downloads')
+    
+    app.run(debug=True, host='0.0.0.0', port=5000)
 
 
 @app.get("/api/info")
@@ -295,3 +343,4 @@ if __name__ == "__main__":
         port=8000,
         reload=True
     )
+
