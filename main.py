@@ -9,44 +9,69 @@ from http.cookies import SimpleCookie
 
 app = FastAPI(title="YouTube Downloader API")
 
+from fastapi import FastAPI, Query
+from fastapi.responses import JSONResponse
+import yt_dlp
+import uvicorn
+from typing import List, Optional
+import tempfile
+import os
+from http.cookies import SimpleCookie
+
+app = FastAPI(title="YouTube Downloader API")
+
+# Minimal essential YouTube cookies
+COOKIES_CONTENT = """# Netscape HTTP Cookie File
+.youtube.com	TRUE	/	TRUE	0	YSC	8FJ78hoPMis
+.youtube.com	TRUE	/	TRUE	1779049217	VISITOR_INFO1_LIVE	eSO8Bb-X6Ss
+.youtube.com	TRUE	/	TRUE	1798057200	PREF	tz=Asia.Karachi
+.youtube.com	TRUE	/	TRUE	1798057192	LOGIN_INFO	AFmmF2swRQIgLQ91ycOD99qAw-D-tfv6MaaZyyvd1hZWDqs7J1hmgjgCIQDVAmyyTmN-ZEpX67uarZGT5YPnrv-eHiFgsO7AIpb8iA:QUQ3MjNmeUZsTi1pVTJWWUtuUlE0cThvT2p6V1RTNF9WY29yQUpnZE96SkRtd1NaUkNsZW4zY1B4VnhqQU9ka3UxejNBY3FoWGJQVTdERDdfdWZDZUNBdzlQLUloVDFENUdOS0ZBam1sSVFrSmlRamM4SmRoc3RrQ3prbGt6UlF6dzNtLTMtMHMtUlgxNWVKRVBULU5XOHBXbl94NEtNZkFn"""
+
 def extract_info(url: str):
-    # Try multiple methods in sequence
-    methods = [
-        # Method 1: Browser cookies
-        {
-            "skip_download": True,
-            "quiet": True,
-            "no_warnings": True,
-            "cookiesfrombrowser": ("chrome",),
-        },
-        # Method 2: Custom headers
-        {
-            "skip_download": True,
-            "quiet": True,
-            "no_warnings": True,
-            "http_headers": {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            },
-        },
-        # Method 3: Basic (no authentication)
-        {
-            "skip_download": True,
-            "quiet": True,
-            "no_warnings": True,
-        }
-    ]
+    # Create a temporary cookies file
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as temp_cookies:
+        temp_cookies.write(COOKIES_CONTENT)
+        temp_cookies_path = temp_cookies.name
     
-    for i, ydl_opts in enumerate(methods):
+    ydl_opts = {
+        "skip_download": True,
+        "quiet": True,
+        "no_warnings": True,
+        "cookiefile": temp_cookies_path,
+    }
+
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+        return info
+    except Exception as e:
+        print(f"Error with embedded cookies: {str(e)}")
+        # Try with browser cookies
         try:
-            print(f"Trying method {i+1}...")
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(url, download=False)
-                print(f"Success with method {i+1}")
-                return info
-        except Exception as e:
-            print(f"Method {i+1} failed: {str(e)}")
-            if i == len(methods) - 1:  # If this was the last method
-                raise e
+            ydl_opts_browser = {
+                "skip_download": True,
+                "quiet": True,
+                "no_warnings": True,
+                "cookiesfrombrowser": ("chrome",),
+            }
+            with yt_dlp.YoutubeDL(ydl_opts_browser) as ydl:
+                return ydl.extract_info(url, download=False)
+        except Exception as e2:
+            print(f"Error with browser cookies: {str(e2)}")
+            # Final fallback - no cookies
+            ydl_opts_fallback = {
+                "skip_download": True,
+                "quiet": True,
+                "no_warnings": True,
+            }
+            with yt_dlp.YoutubeDL(ydl_opts_fallback) as ydl:
+                return ydl.extract_info(url, download=False)
+    finally:
+        # Clean up the temporary file
+        try:
+            os.unlink(temp_cookies_path)
+        except:
+            pass
                 
 @app.get("/api/info")
 def get_info(url: str = Query(...)):
@@ -313,6 +338,7 @@ if __name__ == "__main__":
         port=8000,
         reload=True
     )
+
 
 
 
