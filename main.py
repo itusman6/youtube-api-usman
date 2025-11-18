@@ -5,31 +5,62 @@ import uvicorn
 from typing import List, Optional
 import tempfile
 import os
+from http.cookies import SimpleCookie
 
 app = FastAPI(title="YouTube Downloader API")
 
+# Minimal essential YouTube cookies
+COOKIES_CONTENT = """# Netscape HTTP Cookie File
+.youtube.com	TRUE	/	TRUE	0	YSC	8FJ78hoPMis
+.youtube.com	TRUE	/	TRUE	1779049217	VISITOR_INFO1_LIVE	eSO8Bb-X6Ss
+.youtube.com	TRUE	/	TRUE	1798057200	PREF	tz=Asia.Karachi
+.youtube.com	TRUE	/	TRUE	1798057192	LOGIN_INFO	AFmmF2swRQIgLQ91ycOD99qAw-D-tfv6MaaZyyvd1hZWDqs7J1hmgjgCIQDVAmyyTmN-ZEpX67uarZGT5YPnrv-eHiFgsO7AIpb8iA:QUQ3MjNmeUZsTi1pVTJWWUtuUlE0cThvT2p6V1RTNF9WY29yQUpnZE96SkRtd1NaUkNsZW4zY1B4VnhqQU9ka3UxejNBY3FoWGJQVTdERDdfdWZDZUNBdzlQLUloVDFENUdOS0ZBam1sSVFrSmlRamM4SmRoc3RrQ3prbGt6UlF6dzNtLTMtMHMtUlgxNWVKRVBULU5XOHBXbl94NEtNZkFn"""
+
 def extract_info(url: str):
+    # Create a temporary cookies file
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as temp_cookies:
+        temp_cookies.write(COOKIES_CONTENT)
+        temp_cookies_path = temp_cookies.name
+    
     ydl_opts = {
         "skip_download": True,
         "quiet": True,
         "no_warnings": True,
-        # Try using browser cookies directly
-        "cookiesfrombrowser": ("chrome",),  # or "firefox", "edge", etc.
+        "cookiefile": temp_cookies_path,
     }
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            return ydl.extract_info(url, download=False)
+            info = ydl.extract_info(url, download=False)
+        return info
     except Exception as e:
-        # If browser cookies fail, try without any cookies
-        print(f"Error with browser cookies: {str(e)}")
-        ydl_opts_without_cookies = {
-            "skip_download": True,
-            "quiet": True,
-            "no_warnings": True,
-        }
-        with yt_dlp.YoutubeDL(ydl_opts_without_cookies) as ydl:
-            return ydl.extract_info(url, download=False)
+        print(f"Error with embedded cookies: {str(e)}")
+        # Try with browser cookies
+        try:
+            ydl_opts_browser = {
+                "skip_download": True,
+                "quiet": True,
+                "no_warnings": True,
+                "cookiesfrombrowser": ("chrome",),
+            }
+            with yt_dlp.YoutubeDL(ydl_opts_browser) as ydl:
+                return ydl.extract_info(url, download=False)
+        except Exception as e2:
+            print(f"Error with browser cookies: {str(e2)}")
+            # Final fallback - no cookies
+            ydl_opts_fallback = {
+                "skip_download": True,
+                "quiet": True,
+                "no_warnings": True,
+            }
+            with yt_dlp.YoutubeDL(ydl_opts_fallback) as ydl:
+                return ydl.extract_info(url, download=False)
+    finally:
+        # Clean up the temporary file
+        try:
+            os.unlink(temp_cookies_path)
+        except:
+            pass
 
 
 @app.get("/api/info")
@@ -297,4 +328,5 @@ if __name__ == "__main__":
         port=8000,
         reload=True
     )
+
 
