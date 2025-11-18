@@ -3,30 +3,6 @@ from fastapi.responses import JSONResponse
 import yt_dlp
 import uvicorn
 from typing import List, Optional
-import tempfile
-import os
-from http.cookies import SimpleCookie
-
-app = FastAPI(title="YouTube Downloader API")
-
-from fastapi import FastAPI, Query
-from fastapi.responses import JSONResponse
-import yt_dlp
-import uvicorn
-from typing import List, Optional
-import tempfile
-import os
-from http.cookies import SimpleCookie
-
-app = FastAPI(title="YouTube Downloader API")
-
-from fastapi import FastAPI, Query
-from fastapi.responses import JSONResponse
-import yt_dlp
-import uvicorn
-from typing import List, Optional
-import tempfile
-import os
 
 app = FastAPI(title="YouTube Downloader API")
 
@@ -50,8 +26,10 @@ def extract_info(url: str):
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             return ydl.extract_info(url, download=False)
     except Exception as e:
-        return JSONResponse({"status": False, "error": str(e)}, status_code=500)
-                
+        # Re-raise the exception to be handled by the route handlers
+        raise e
+
+
 @app.get("/api/info")
 def get_info(url: str = Query(...)):
     try:
@@ -317,11 +295,3 @@ if __name__ == "__main__":
         port=8000,
         reload=True
     )
-
-
-
-
-
-
-
-
